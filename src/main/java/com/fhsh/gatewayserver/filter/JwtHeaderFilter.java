@@ -1,6 +1,6 @@
 package com.fhsh.gatewayserver.filter;
 
-import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.Ordered;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
@@ -10,9 +10,25 @@ import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
-@Slf4j
+/**
+ * 전역 필터: 인증된 사용자의 JWT 토큰에서 정보를 추출하여
+ * 하위 서비스가 사용할 수 있도록 HTTP 헤더에 삽입합니다.
+ */
 @Component
-public class JwtHeaderFilter implements GlobalFilter {
+public class JwtHeaderFilter implements GlobalFilter, Ordered {
+
+    private static final String HEADER_USER_ID = "X-User-Id";
+    private static final String HEADER_USER_EMAIL = "X-User-Email";
+    private static final String HEADER_USER_ROLES = "X-User-Roles";
+
+    /**
+     * 필터 실행 순서 설정
+     * 보안 필터가 토큰을 검증한 후에 실행되어야 하므로 우선순위를 낮게(숫자를 크게) 설정
+     */
+    @Override
+    public int getOrder() {
+        return Ordered.LOWEST_PRECEDENCE - 5;
+    }
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -39,8 +55,6 @@ public class JwtHeaderFilter implements GlobalFilter {
                             .header("X-User-Email", email)
                             .header("X-User-Role", role)
                             .build();
-
-                    log.info("Injected Header -> userId: {}, email: {}", userId, email);
 
                     return chain.filter(exchange.mutate().request(mutatedRequest).build());
                 })
