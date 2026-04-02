@@ -1,3 +1,14 @@
 spring:
   application:
-    name: gatewayserver
+    name: gateway-service
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+  cloud:
+    config:
+      discovery:
+        enabled: true
+        service-id: config-server
+
+  config:
+    import: "configserver:"
