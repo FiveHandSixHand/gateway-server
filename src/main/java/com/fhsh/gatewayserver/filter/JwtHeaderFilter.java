@@ -3,12 +3,16 @@ package com.fhsh.gatewayserver.filter;
 import org.springframework.core.Ordered;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+
+import java.util.Collection;
+import java.util.Map;
 
 /**
  * 전역 필터: 인증된 사용자의 JWT 토큰에서 정보를 추출하여
@@ -59,5 +63,21 @@ public class JwtHeaderFilter implements GlobalFilter, Ordered {
                     return chain.filter(exchange.mutate().request(mutatedRequest).build());
                 })
                 .switchIfEmpty(chain.filter(exchange));
+    }
+
+    /**
+     * JWT 내의 realm_access 클레임에서 권한(Roles) 리스트를 추출하는 헬퍼 메서드
+     * Keycloak의 표준 토큰 구조인 { "realm_access": { "roles": ["ADMIN", "USER"] } }를 파싱합니다.
+     */
+    private String extractSingleRole(Jwt jwt) {
+        Map<String, Object> realmAccess = jwt.getClaim("realm_access");
+        if (realmAccess != null && realmAccess.get("roles") instanceof Collection<?> roles) {
+            // 리스트의 첫 번째 요소를 가져오되, 없으면 빈 문자열
+            return roles.stream()
+                    .map(Object::toString)
+                    .findFirst()
+                    .orElse("");
+        }
+        return "";
     }
 }
