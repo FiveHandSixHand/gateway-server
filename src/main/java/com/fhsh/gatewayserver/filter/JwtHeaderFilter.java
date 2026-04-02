@@ -25,7 +25,7 @@ public class JwtHeaderFilter implements GlobalFilter, Ordered {
 
     private static final String HEADER_USER_ID = "X-User-Id";
     private static final String HEADER_USER_EMAIL = "X-User-Email";
-    private static final String HEADER_USER_ROLES = "X-User-Roles";
+    private static final String HEADER_USER_ROLE = "X-User-Role";
 
     /**
      * 필터 실행 순서 설정
@@ -60,7 +60,7 @@ public class JwtHeaderFilter implements GlobalFilter, Ordered {
                     ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
                             .header(HEADER_USER_ID, safe(userId))
                             .header(HEADER_USER_EMAIL, safe(email))
-                            .header(HEADER_USER_ROLES, role) // 단일 권한 그대로 삽입
+                            .header(HEADER_USER_ROLE, role) // 단일 권한 그대로 삽입
                             .build();
 
                     return chain.filter(exchange.mutate().request(mutatedRequest).build());
@@ -79,6 +79,8 @@ public class JwtHeaderFilter implements GlobalFilter, Ordered {
             // 리스트의 첫 번째 요소를 가져오되, 없으면 빈 문자열
             return roles.stream()
                     .map(Object::toString)
+                    // "default-"로 시작하는 기본 권한은 제외하고 필터링
+                    .filter(role -> !role.startsWith("default-roles") && !role.equals("offline_access") && !role.equals("uma_authorization"))
                     .findFirst()
                     .orElse("");
         }
