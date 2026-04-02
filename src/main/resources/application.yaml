@@ -12,3 +12,8 @@ spring:
 
   config:
     import: "configserver:"
+
+management:
+  endpoint:
+    health:
+      show-details: always
