@@ -49,11 +49,11 @@ Authorization: Bearer {JWT_TOKEN}
 
 ### 📤 Gateway → 서비스 전달 헤더
 
-```http
-X-User-Id: {userId}
-X-User-Email: {email}
-X-User-Role: {role}
-```
+| 헤더 키      | 설명                         | 예시 값                                   |
+| ------------ | ---------------------------- | ----------------------------------------- |
+| X-User-Id    | 사용자의 UUID (Keycloak sub) | UUID 값                                   |
+| X-User-Email | 사용자의 이메일 주소         | test@test.com                             |
+| X-User-Role  | 사용자 권한                  | ADMIN or HUB_ADMIN or DELIVERY or COMPANY |
 
 ---
 
@@ -64,22 +64,16 @@ X-User-Role: {role}
 ### 📌 Controller 예시
 
 ```java
-@RestController
-@RequestMapping("/api/v1/users")
-public class UserController {
-
-    @GetMapping("/me")
-    public ResponseEntity<?> getMyInfo(
-            @RequestHeader("X-User-Id") String userId,
-            @RequestHeader("X-User-Email") String email,
-            @RequestHeader("X-User-Role") String role
-    ) {
-        return ResponseEntity.ok(Map.of(
-                "userId", userId,
-                "email", email,
-                "role", role
-        ));
-    }
+@GetMapping("/api/v1/users/test")
+public String test(
+   @RequestHeader(value = "X-User-Id", required = false) String userId,
+   @RequestHeader(value = "X-User-Email", required = false) String email,
+   @RequestHeader(value = "X-User-Role", required = false) String role
+) {
+   if("ADMIN".equals(role)) {
+      return "userId=" + userId + ", email=" + email + ", role=" + role;
+   }
+   return "userId=" + userId + ", email=" + email;
 }
 ```
 
@@ -121,12 +115,85 @@ public class UserController {
 
 ---
 
-## 📈 기대 효과
+## 🛡️ 안정성 및 보안 설정
 
-- 인증 로직을 Gateway에 집중하여 **보안 강화**
-- 서비스 간 결합도 감소
-- 단일 진입점 제공으로 **확장성 향상**
-- 간단한 헤더 기반 사용자 정보 전달로 개발 생산성 향상
+### 1. Rate Limiting (요청 제한)
+
+- Redis를 사용하여 유저별/IP별 트래픽을 제어합니다.
+
+- 로그인 유저는 userId 기반, 비로그인 유저는 Remote IP 기반으로 키를 생성하여 무분별한 API 호출을 방지합니다.
+
+### 2. Circuit Breaker & Fallback
+
+- 특정 서비스 응답이 지연되거나 장애가 발생하면 즉시 Fallback 응답을 반환합니다.
+
+- 응답 규격 (503 Service Unavailable):
+
+```JSON
+{
+  "status": 503,
+  "service": "user-service",
+  "message": "다잇다 서비스가 일시적으로 지연되고 있습니다. 잠시 후 다시 시도해주세요.",
+  "timestamp": "2026-04-03T..."
+}
+```
+
+> ⚠️ Circuit Breaker (Resilience4j)를 사용하기 위해서는 각자 서비스에 등록해야합니다.
+
+## Circuit Breaker 등록 방법
+
+- **사용법**: 외부 호출이 발생하는 Service 메서드에 `@CircuitBreaker`를 붙이세요.
+- **Fallback**: 호출 실패 시 사용자에게 돌려줄 **기본 응답 로직**을 반드시 작성하세요.
+- **주의**: Fallback 메서드는 원본 메서드와 반환 타입이 같아야 하며, 마지막 파라미터로 `Throwable`을 받아야 합니다.
+
+### 1. 의존성 추가 (build.gradle)
+
+```gradle
+dependencies {
+   implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.2.0'
+   implementation 'org.springframework.boot:spring-boot-starter-aop'
+
+   // 아직 infra-repo에는 prometheus가 없습니다. 추가하시고 주석처리 해주세요.
+   // docker에 올라가면 공지 하겠습니다!
+   runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
+}
+```
+
+### 2. 로직에 적용 (Annotation 방식)
+
+각 서비스의 로직의 필요한 곳에 추가하시면 됩니다.
+아래는 예시이며 각자 비즈니스 로직에 맞게 사용하시면 됩니다.
+
+```java
+@Service
+@Slf4j
+public class OrderService {
+
+    // 1. Circuit Breaker 적용 (이름은 설정파일과 매칭)
+    // 2. fallbackMethod는 같은 클래스 내에 정의되어야 함
+    @CircuitBreaker(name = "orderService", fallbackMethod = "fallbackGetProductDetails")
+    public ProductResponse getProductDetails(Long productId) {
+
+        // 외부 서비스(Product Service) 호출 로직 (RestTemplate or FeignClient)
+        // 여기서 에러가 나거나 응답이 늦으면 Circuit이 열립니다.
+        return productClient.getProduct(productId);
+    }
+
+    // Fallback 메서드 (원본 메서드와 파라미터가 같아야 하며, Exception 객체가 추가됨)
+    public ProductResponse fallbackGetProductDetails(Long productId, Throwable t) {
+        log.error("Product service is down! Cause: {}", t.getMessage());
+
+        // 에러 발생 시 돌려줄 가짜(Mock) 데이터 혹은 기본값
+        return new ProductResponse(productId, "임시 상품 정보", 0L, "현재 정보를 불러올 수 없습니다.");
+    }
+}
+```
+
+### 3. 설정 파일 작성 (application.yml)
+
+`project-configs/configs/common` 에서 일괄적으로 관리하겠습니다.
+
+혹시 각 서비스마다 실패율이나 설정을 조정하고 싶다면 저에게 말씀해주세요.
 
 ---
 
