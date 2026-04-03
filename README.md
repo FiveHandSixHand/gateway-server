@@ -55,8 +55,6 @@ Authorization: Bearer {JWT_TOKEN}
 | X-User-Email | 사용자의 이메일 주소         | test@test.com                             |
 | X-User-Role  | 사용자 권한                  | ADMIN or HUB_ADMIN or DELIVERY or COMPANY |
 
-#### 예시
-
 ---
 
 ## 🧩 서비스에서 사용하는 방법
