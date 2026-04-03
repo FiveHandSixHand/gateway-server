@@ -159,6 +159,13 @@ dependencies {
 }
 ```
 
+저는 위 예시처럼 github에서 의존성을 가져왔더니 안돼서 아래 의존성을 추가했습니다.
+
+```gradle
+implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-reactor-resilience4j'
+runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
+```
+
 ### 2. 로직에 적용 (Annotation 방식)
 
 각 서비스의 로직의 필요한 곳에 추가하시면 됩니다.
