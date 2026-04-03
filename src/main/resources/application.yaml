@@ -15,5 +15,12 @@ spring:
 
 management:
   endpoint:
+    web:
+      exposure:
+        include: health, resilience4j
     health:
       show-details: always
+
+logging:
+  level:
+    io.github.resilience4j: DEBUG
