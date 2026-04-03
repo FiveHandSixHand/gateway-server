@@ -159,11 +159,11 @@ dependencies {
 }
 ```
 
-저는 위 예시처럼 github에서 의존성을 가져왔더니 안돼서 아래 의존성을 추가했습니다.
+혹시 위 예시처럼 github에서 의존성을 가져왔는데 에러가 발생한다면 아래 의존성을 추가해주세요.
 
 ```gradle
 implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-reactor-resilience4j'
-runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
+// runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 ```
 
 ### 2. 로직에 적용 (Annotation 방식)
