@@ -11,7 +11,7 @@ spring:
         service-id: config-server
 
   config:
-    import: "configserver:http://localhost:8888"
+    import: "optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
 
 management:
   endpoint:
@@ -24,3 +24,8 @@ management:
 logging:
   level:
     io.github.resilience4j: DEBUG
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://${EUREKA_HOST}:${EUREKA_PORT}/eureka/
